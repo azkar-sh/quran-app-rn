@@ -271,14 +271,18 @@ export default function QuranScreen() {
             onChangeText={setPageInput}
             keyboardType="number-pad"
             placeholder="Go to page"
-            placeholderTextColor="rgba(255,255,255,0.65)"
-            style={styles.pageInput}
+            placeholderTextColor={colors.icon}
+            style={[
+              styles.pageInput,
+              {
+                backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
+                borderColor: colors.tint,
+                color: colors.text,
+              },
+            ]}
           />
           <Pressable
-            style={[
-              styles.goButton,
-              { backgroundColor: "rgba(255,255,255,0.2)" },
-            ]}
+            style={[styles.goButton, { backgroundColor: colors.tint }]}
             onPress={onGoToPage}
           >
             <Text style={styles.goButtonText}>Go</Text>
@@ -475,18 +479,18 @@ const styles = StyleSheet.create({
   pageInput: {
     backgroundColor: "rgba(255,255,255,0.14)",
     borderColor: "rgba(255,255,255,0.25)",
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
     color: "#FFFFFF",
     flex: 1,
     fontSize: 16,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   goButton: {
-    borderRadius: 14,
+    borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingVertical: 14,
   },
   goButtonText: {
     color: "#FFFFFF",
