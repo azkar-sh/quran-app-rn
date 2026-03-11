@@ -3,10 +3,16 @@ import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   getLastReadPage,
+  getQuranArabicFontSize,
   getQuranShowTranslation,
+  getQuranTranslationFontSize,
   getQuranViewMode,
+  QuranArabicFontSize,
+  QuranTranslationFontSize,
   QuranViewMode,
+  setQuranArabicFontSize,
   setQuranShowTranslation,
+  setQuranTranslationFontSize,
   setQuranViewMode,
 } from "@/lib/storage";
 import {
@@ -41,6 +47,24 @@ import {
 const MIN_PAGE = 1;
 const MAX_PAGE = 604;
 
+const ARABIC_FONT_PRESETS: Record<
+  QuranArabicFontSize,
+  { fontSize: number; lineHeight: number; label: string }
+> = {
+  24: { fontSize: 24, lineHeight: 40, label: "24" },
+  36: { fontSize: 36, lineHeight: 60, label: "36" },
+  48: { fontSize: 48, lineHeight: 80, label: "48" },
+};
+
+const TRANSLATION_FONT_PRESETS: Record<
+  QuranTranslationFontSize,
+  { fontSize: number; lineHeight: number; label: string }
+> = {
+  14: { fontSize: 14, lineHeight: 20, label: "14" },
+  20: { fontSize: 20, lineHeight: 32, label: "20" },
+  28: { fontSize: 28, lineHeight: 38, label: "28" },
+};
+
 export default function QuranScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
@@ -54,6 +78,10 @@ export default function QuranScreen() {
   const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<QuranViewMode>("ayat");
   const [showTranslation, setShowTranslation] = useState<boolean>(true);
+  const [arabicFontSize, setArabicFontSizeState] =
+    useState<QuranArabicFontSize>(24);
+  const [translationFontSize, setTranslationFontSizeState] =
+    useState<QuranTranslationFontSize>(14);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,15 +119,24 @@ export default function QuranScreen() {
     let mounted = true;
 
     const bootstrap = async () => {
-      const [savedPage, savedViewMode, savedShowTranslation] =
-        await Promise.all([
-          getLastReadPage(),
-          getQuranViewMode(),
-          getQuranShowTranslation(),
-        ]);
+      const [
+        savedPage,
+        savedViewMode,
+        savedShowTranslation,
+        savedArabicFontSize,
+        savedTranslationFontSize,
+      ] = await Promise.all([
+        getLastReadPage(),
+        getQuranViewMode(),
+        getQuranShowTranslation(),
+        getQuranArabicFontSize(),
+        getQuranTranslationFontSize(),
+      ]);
       if (!mounted) return;
       setViewMode(savedViewMode);
       setShowTranslation(savedShowTranslation);
+      setArabicFontSizeState(savedArabicFontSize);
+      setTranslationFontSizeState(savedTranslationFontSize);
       await loadPage(savedPage);
     };
 
@@ -156,6 +193,9 @@ export default function QuranScreen() {
     const next = Math.max(MIN_PAGE, Math.min(MAX_PAGE, Math.floor(parsed)));
     void loadPage(next);
   }, [loadPage, page, pageInput]);
+
+  const arabicPreset = ARABIC_FONT_PRESETS[arabicFontSize];
+  const translationPreset = TRANSLATION_FONT_PRESETS[translationFontSize];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -237,7 +277,11 @@ export default function QuranScreen() {
                   <Text
                     style={[
                       styles.arabText,
-                      { color: colors.text },
+                      {
+                        color: colors.text,
+                        fontSize: arabicPreset.fontSize,
+                        lineHeight: arabicPreset.lineHeight,
+                      },
                       fontsLoaded ? { fontFamily: "QuranArabic" } : null,
                     ]}
                   >
@@ -249,7 +293,14 @@ export default function QuranScreen() {
                 ) : null}
                 {showTranslation && typeof item.translation === "string" ? (
                   <Text
-                    style={[styles.translationText, { color: colors.icon }]}
+                    style={[
+                      styles.translationText,
+                      {
+                        color: colors.icon,
+                        fontSize: translationPreset.fontSize,
+                        lineHeight: translationPreset.lineHeight,
+                      },
+                    ]}
                   >
                     {item.translation}{" "}
                     {item.ayah_number && showTranslation
@@ -413,27 +464,134 @@ export default function QuranScreen() {
 
             {/* Show Translation — only relevant in Ayat List mode */}
             {viewMode === "ayat" ? (
-              <View style={[styles.settingSection, styles.settingRow]}>
-                <View style={styles.settingLabelGroup}>
+              <>
+                <View style={[styles.settingSection, styles.settingRow]}>
+                  <View style={styles.settingLabelGroup}>
+                    <Text style={[styles.settingLabel, { color: colors.text }]}>
+                      Show Translation
+                    </Text>
+                    <Text
+                      style={[
+                        styles.settingDescription,
+                        { color: colors.icon },
+                      ]}
+                    >
+                      Display Indonesian translation below each verse
+                    </Text>
+                  </View>
+                  <Switch
+                    value={showTranslation}
+                    onValueChange={(val) => {
+                      setShowTranslation(val);
+                      void setQuranShowTranslation(val);
+                    }}
+                    trackColor={{ false: colors.icon, true: colors.tint }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={styles.settingSection}>
                   <Text style={[styles.settingLabel, { color: colors.text }]}>
-                    Show Translation
+                    Arabic Text Size
                   </Text>
                   <Text
                     style={[styles.settingDescription, { color: colors.icon }]}
                   >
-                    Display Indonesian translation below each verse
+                    Choose a preset for larger and easier-to-read Arabic text
                   </Text>
+                  <View style={styles.modeRow}>
+                    {([24, 36, 48] as const).map((size) => (
+                      <Pressable
+                        key={size}
+                        style={[
+                          styles.modeButton,
+                          {
+                            borderColor:
+                              arabicFontSize === size
+                                ? colors.tint
+                                : colors.icon,
+                            backgroundColor:
+                              arabicFontSize === size
+                                ? colors.tint
+                                : colorScheme === "dark"
+                                  ? "#101513"
+                                  : "#F8FCFA",
+                          },
+                        ]}
+                        onPress={() => {
+                          setArabicFontSizeState(size);
+                          void setQuranArabicFontSize(size);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.modeButtonText,
+                            {
+                              color:
+                                arabicFontSize === size
+                                  ? "#FFFFFF"
+                                  : colors.text,
+                            },
+                          ]}
+                        >
+                          {ARABIC_FONT_PRESETS[size].label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-                <Switch
-                  value={showTranslation}
-                  onValueChange={(val) => {
-                    setShowTranslation(val);
-                    void setQuranShowTranslation(val);
-                  }}
-                  trackColor={{ false: colors.icon, true: colors.tint }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
+
+                <View style={styles.settingSection}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>
+                    Translation Text Size
+                  </Text>
+                  <Text
+                    style={[styles.settingDescription, { color: colors.icon }]}
+                  >
+                    Set translation size separately for better readability
+                  </Text>
+                  <View style={styles.modeRow}>
+                    {([14, 20, 28] as const).map((size) => (
+                      <Pressable
+                        key={size}
+                        style={[
+                          styles.modeButton,
+                          {
+                            borderColor:
+                              translationFontSize === size
+                                ? colors.tint
+                                : colors.icon,
+                            backgroundColor:
+                              translationFontSize === size
+                                ? colors.tint
+                                : colorScheme === "dark"
+                                  ? "#101513"
+                                  : "#F8FCFA",
+                          },
+                        ]}
+                        onPress={() => {
+                          setTranslationFontSizeState(size);
+                          void setQuranTranslationFontSize(size);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.modeButtonText,
+                            {
+                              color:
+                                translationFontSize === size
+                                  ? "#FFFFFF"
+                                  : colors.text,
+                            },
+                          ]}
+                        >
+                          {TRANSLATION_FONT_PRESETS[size].label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </>
             ) : null}
           </Pressable>
         </Pressable>
@@ -537,14 +695,9 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   arabText: {
-    fontSize: 24,
-    lineHeight: 40,
     textAlign: "right",
   },
-  translationText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  translationText: {},
   errorWrap: {
     alignItems: "center",
     paddingHorizontal: 20,

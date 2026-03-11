@@ -11,9 +11,13 @@ const QURAN_PAGE_PREFIX = "quran.page.";
 const PRAYER_TODAY_PREFIX = "prayer.today.";
 const QURAN_VIEW_MODE_KEY = "quran.viewMode";
 const QURAN_SHOW_TRANSLATION_KEY = "quran.showTranslation";
+const QURAN_ARABIC_FONT_SIZE_KEY = "quran.arabicFontSize";
+const QURAN_TRANSLATION_FONT_SIZE_KEY = "quran.translationFontSize";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type QuranViewMode = "ayat" | "page";
+export type QuranArabicFontSize = 24 | 36 | 48;
+export type QuranTranslationFontSize = 14 | 20 | 28;
 
 export type SavedLocation = {
   lat: number;
@@ -316,4 +320,34 @@ export async function getQuranShowTranslation(): Promise<boolean> {
 
 export async function setQuranShowTranslation(show: boolean): Promise<void> {
   await storageSetItem(QURAN_SHOW_TRANSLATION_KEY, String(show));
+}
+
+export async function getQuranArabicFontSize(): Promise<QuranArabicFontSize> {
+  const raw = Number(await storageGetItem(QURAN_ARABIC_FONT_SIZE_KEY));
+  if (raw === 24 || raw === 36 || raw === 48) {
+    return raw;
+  }
+
+  return 24;
+}
+
+export async function setQuranArabicFontSize(
+  size: QuranArabicFontSize,
+): Promise<void> {
+  await storageSetItem(QURAN_ARABIC_FONT_SIZE_KEY, String(size));
+}
+
+export async function getQuranTranslationFontSize(): Promise<QuranTranslationFontSize> {
+  const raw = Number(await storageGetItem(QURAN_TRANSLATION_FONT_SIZE_KEY));
+  if (raw === 14 || raw === 20 || raw === 28) {
+    return raw;
+  }
+
+  return 14;
+}
+
+export async function setQuranTranslationFontSize(
+  size: QuranTranslationFontSize,
+): Promise<void> {
+  await storageSetItem(QURAN_TRANSLATION_FONT_SIZE_KEY, String(size));
 }
