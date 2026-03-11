@@ -8,8 +8,11 @@ const PRAYER_METHOD_KEY = "prayer.method";
 
 const QURAN_PAGE_PREFIX = "quran.page.";
 const PRAYER_TODAY_PREFIX = "prayer.today.";
+const QURAN_VIEW_MODE_KEY = "quran.viewMode";
+const QURAN_SHOW_TRANSLATION_KEY = "quran.showTranslation";
 
 export type ThemeMode = "system" | "light" | "dark";
+export type QuranViewMode = "ayat" | "page";
 
 export type SavedLocation = {
   lat: number;
@@ -164,4 +167,23 @@ export async function getJsonCache<T>(key: string): Promise<T | null> {
 
 export async function setJsonCache<T>(key: string, value: T): Promise<void> {
   await AsyncStorage.setItem(key, JSON.stringify(value));
+}
+
+export async function getQuranViewMode(): Promise<QuranViewMode> {
+  const raw = await AsyncStorage.getItem(QURAN_VIEW_MODE_KEY);
+  if (raw === "ayat" || raw === "page") return raw;
+  return "ayat";
+}
+
+export async function setQuranViewMode(mode: QuranViewMode): Promise<void> {
+  await AsyncStorage.setItem(QURAN_VIEW_MODE_KEY, mode);
+}
+
+export async function getQuranShowTranslation(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(QURAN_SHOW_TRANSLATION_KEY);
+  return raw !== "false";
+}
+
+export async function setQuranShowTranslation(show: boolean): Promise<void> {
+  await AsyncStorage.setItem(QURAN_SHOW_TRANSLATION_KEY, String(show));
 }

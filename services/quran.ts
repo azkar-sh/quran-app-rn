@@ -67,3 +67,12 @@ export async function getQuranPage(page: number): Promise<QuranPagePayload> {
 export async function saveReadingProgress(page: number): Promise<void> {
   await Promise.all([setLastReadPage(page), addReadPage(page)]);
 }
+
+export function prefetchQuranBatch(batchStart: number): void {
+  const pages = Array.from({ length: 10 }, (_, i) => batchStart + i).filter(
+    (p) => p >= 1 && p <= 604,
+  );
+  for (const p of pages) {
+    void getQuranPage(p).catch(() => undefined);
+  }
+}

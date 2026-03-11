@@ -1,7 +1,20 @@
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { getLastReadPage } from "@/lib/storage";
-import { getQuranPage, QuranAyah, saveReadingProgress } from "@/services/quran";
+import {
+  getLastReadPage,
+  getQuranShowTranslation,
+  getQuranViewMode,
+  QuranViewMode,
+  setQuranShowTranslation,
+  setQuranViewMode,
+} from "@/lib/storage";
+import {
+  getQuranPage,
+  prefetchQuranBatch,
+  QuranAyah,
+  saveReadingProgress,
+} from "@/services/quran";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Image } from "expo-image";
 import React, {
   useCallback,
@@ -13,9 +26,11 @@ import React, {
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   PanResponder,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -23,7 +38,6 @@ import {
 
 const MIN_PAGE = 1;
 const MAX_PAGE = 604;
-type QuranViewMode = "ayat" | "page";
 
 export default function QuranScreen() {
   const colorScheme = useColorScheme() ?? "light";
@@ -34,8 +48,11 @@ export default function QuranScreen() {
   const [ayahs, setAyahs] = useState<QuranAyah[]>([]);
   const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<QuranViewMode>("ayat");
+  const [showTranslation, setShowTranslation] = useState<boolean>(true);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const prefetchedBatches = useRef<Set<number>>(new Set());
 
   const loadPage = useCallback(async (nextPage: number) => {
     const bounded = Math.max(MIN_PAGE, Math.min(MAX_PAGE, nextPage));
@@ -49,6 +66,11 @@ export default function QuranScreen() {
       setPage(bounded);
       setPageInput(String(bounded));
       await saveReadingProgress(bounded);
+      const batchStart = Math.floor((bounded - 1) / 10) * 10 + 1;
+      if (!prefetchedBatches.current.has(batchStart)) {
+        prefetchedBatches.current.add(batchStart);
+        prefetchQuranBatch(batchStart);
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -64,10 +86,15 @@ export default function QuranScreen() {
     let mounted = true;
 
     const bootstrap = async () => {
-      const savedPage = await getLastReadPage();
-      if (!mounted) {
-        return;
-      }
+      const [savedPage, savedViewMode, savedShowTranslation] =
+        await Promise.all([
+          getLastReadPage(),
+          getQuranViewMode(),
+          getQuranShowTranslation(),
+        ]);
+      if (!mounted) return;
+      setViewMode(savedViewMode);
+      setShowTranslation(savedShowTranslation);
       await loadPage(savedPage);
     };
 
@@ -128,10 +155,26 @@ export default function QuranScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Quran</Text>
-        <Text style={[styles.subtitle, { color: colors.icon }]}>
-          Page {page} / 604
-        </Text>
+        <View style={styles.headerTopRow}>
+          <View>
+            <Text style={[styles.title, { color: colors.text }]}>Quran</Text>
+            <Text style={[styles.subtitle, { color: colors.icon }]}>
+              Page {page} / 604
+            </Text>
+          </View>
+          <Pressable
+            style={[
+              styles.settingsButton,
+              {
+                backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
+                borderColor: colors.tint,
+              },
+            ]}
+            onPress={() => setShowSettingsModal(true)}
+          >
+            <MaterialIcons name="tune" size={22} color={colors.tint} />
+          </Pressable>
+        </View>
 
         <View style={styles.controlsRow}>
           <TextInput
@@ -154,58 +197,6 @@ export default function QuranScreen() {
             onPress={onGoToPage}
           >
             <Text style={styles.goButtonText}>Go</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.modeRow}>
-          <Pressable
-            style={[
-              styles.modeButton,
-              {
-                borderColor: viewMode === "ayat" ? colors.tint : colors.icon,
-                backgroundColor:
-                  viewMode === "ayat"
-                    ? colors.tint
-                    : colorScheme === "dark"
-                      ? "#101513"
-                      : "#F8FCFA",
-              },
-            ]}
-            onPress={() => setViewMode("ayat")}
-          >
-            <Text
-              style={[
-                styles.modeButtonText,
-                { color: viewMode === "ayat" ? "#FFFFFF" : colors.text },
-              ]}
-            >
-              Ayat List
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.modeButton,
-              {
-                borderColor: viewMode === "page" ? colors.tint : colors.icon,
-                backgroundColor:
-                  viewMode === "page"
-                    ? colors.tint
-                    : colorScheme === "dark"
-                      ? "#101513"
-                      : "#F8FCFA",
-              },
-            ]}
-            onPress={() => setViewMode("page")}
-          >
-            <Text
-              style={[
-                styles.modeButtonText,
-                { color: viewMode === "page" ? "#FFFFFF" : colors.text },
-              ]}
-            >
-              Quran Page
-            </Text>
           </Pressable>
         </View>
       </View>
@@ -236,12 +227,14 @@ export default function QuranScreen() {
         ) : viewMode === "page" ? (
           <View style={styles.pageImageWrap}>
             {typeof pageImageUrl === "string" && pageImageUrl.length > 0 ? (
-              <Image
-                source={{ uri: pageImageUrl }}
-                style={styles.pageImage}
-                contentFit="contain"
-                transition={150}
-              />
+              <>
+                <Image
+                  source={{ uri: pageImageUrl }}
+                  style={styles.pageImage}
+                  contentFit="contain"
+                  transition={150}
+                />
+              </>
             ) : (
               <Text style={[styles.pageImageFallback, { color: colors.icon }]}>
                 Page image is not available for this page.
@@ -279,7 +272,7 @@ export default function QuranScreen() {
                     {item.arab}
                   </Text>
                 ) : null}
-                {typeof item.translation === "string" ? (
+                {showTranslation && typeof item.translation === "string" ? (
                   <Text
                     style={[styles.translationText, { color: colors.icon }]}
                   >
@@ -315,6 +308,129 @@ export default function QuranScreen() {
           <Text style={styles.navButtonText}>Next</Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={showSettingsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowSettingsModal(false)}
+        >
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: colors.background }]}
+            onPress={() => {
+              /* consume touch so overlay doesn't close */
+            }}
+          >
+            {/* Modal header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Page Settings
+              </Text>
+              <Pressable onPress={() => setShowSettingsModal(false)}>
+                <MaterialIcons name="close" size={24} color={colors.icon} />
+              </Pressable>
+            </View>
+
+            {/* View Mode */}
+            <View style={styles.settingSection}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                View Mode
+              </Text>
+              <View style={styles.modeRow}>
+                <Pressable
+                  style={[
+                    styles.modeButton,
+                    {
+                      borderColor:
+                        viewMode === "ayat" ? colors.tint : colors.icon,
+                      backgroundColor:
+                        viewMode === "ayat"
+                          ? colors.tint
+                          : colorScheme === "dark"
+                            ? "#101513"
+                            : "#F8FCFA",
+                    },
+                  ]}
+                  onPress={() => {
+                    setViewMode("ayat");
+                    void setQuranViewMode("ayat");
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      {
+                        color: viewMode === "ayat" ? "#FFFFFF" : colors.text,
+                      },
+                    ]}
+                  >
+                    Ayat List
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modeButton,
+                    {
+                      borderColor:
+                        viewMode === "page" ? colors.tint : colors.icon,
+                      backgroundColor:
+                        viewMode === "page"
+                          ? colors.tint
+                          : colorScheme === "dark"
+                            ? "#101513"
+                            : "#F8FCFA",
+                    },
+                  ]}
+                  onPress={() => {
+                    setViewMode("page");
+                    void setQuranViewMode("page");
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      {
+                        color: viewMode === "page" ? "#FFFFFF" : colors.text,
+                      },
+                    ]}
+                  >
+                    Quran Page
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Show Translation — only relevant in Ayat List mode */}
+            {viewMode === "ayat" ? (
+              <View style={[styles.settingSection, styles.settingRow]}>
+                <View style={styles.settingLabelGroup}>
+                  <Text style={[styles.settingLabel, { color: colors.text }]}>
+                    Show Translation
+                  </Text>
+                  <Text
+                    style={[styles.settingDescription, { color: colors.icon }]}
+                  >
+                    Display Indonesian translation below each verse
+                  </Text>
+                </View>
+                <Switch
+                  value={showTranslation}
+                  onValueChange={(val) => {
+                    setShowTranslation(val);
+                    void setQuranShowTranslation(val);
+                  }}
+                  trackColor={{ false: colors.icon, true: colors.tint }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -327,6 +443,18 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  headerTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  settingsButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    padding: 8,
   },
   title: {
     fontSize: 30,
@@ -388,8 +516,8 @@ const styles = StyleSheet.create({
   pageImageWrap: {
     flex: 1,
     justifyContent: "center",
-    padding: 16,
-    paddingBottom: 120,
+    padding: 0,
+    paddingBottom: 0,
   },
   pageImage: {
     height: "100%",
@@ -462,5 +590,52 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  modalOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    gap: 4,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    width: "100%",
+  },
+  modalHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  settingSection: {
+    gap: 10,
+    paddingVertical: 12,
+  },
+  settingRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  settingLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  settingDescription: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  settingLabelGroup: {
+    flex: 1,
+    paddingRight: 12,
   },
 });
