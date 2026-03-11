@@ -230,9 +230,7 @@ export default function HomeScreen() {
         forceRefresh: forcePrayerRefresh,
       });
       setLocationName(
-        result.fromCache
-          ? `${result.location.name} (cached)`
-          : result.location.name,
+        result.fromCache ? `${result.location.name}` : result.location.name,
       );
       setTimings(result.timings);
       setPrayerError(null);

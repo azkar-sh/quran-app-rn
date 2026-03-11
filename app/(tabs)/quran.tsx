@@ -15,6 +15,7 @@ import {
   setQuranTranslationFontSize,
   setQuranViewMode,
 } from "@/lib/storage";
+import { getSurahInfoForPage } from "@/lib/surah-pages";
 import {
   getQuranPage,
   prefetchQuranBatch,
@@ -197,12 +198,14 @@ export default function QuranScreen() {
   const arabicPreset = ARABIC_FONT_PRESETS[arabicFontSize];
   const translationPreset = TRANSLATION_FONT_PRESETS[translationFontSize];
 
+  const surahInfo = getSurahInfoForPage(page);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHero
-        title="Quran"
-        subtitle={`Page ${page} / 604`}
-        badge={viewMode === "page" ? "Mushaf Page View" : "Ayat List View"}
+        title={`${surahInfo.name}`}
+        subtitle={`${surahInfo.meaning}`}
+        badge={viewMode === "page" ? "Tampilan Mushaf" : "Tampilan per Ayat"}
         rightElement={
           <Pressable
             style={styles.settingsButton}
@@ -215,11 +218,24 @@ export default function QuranScreen() {
 
       <View style={styles.content} {...panResponder.panHandlers}>
         {loading ? (
-          <ActivityIndicator
-            color={colors.tint}
-            size="large"
-            style={styles.loader}
-          />
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <ActivityIndicator
+              color={colors.tintNav}
+              size="large"
+              style={styles.loader}
+            />
+
+            <Text style={[styles.swipeHint, { color: colors.icon }]}>
+              Mohon tunggu, memuat halaman Quran...
+            </Text>
+          </View>
         ) : error ? (
           <View style={styles.errorWrap}>
             <Text style={styles.errorText}>{error}</Text>
@@ -316,29 +332,28 @@ export default function QuranScreen() {
 
       <View style={styles.bottomNav}>
         {/* Ayah Controls and Jump to Page */}
-        <View style={styles.controlsRow}>
-          <TextInput
-            value={pageInput}
-            onChangeText={setPageInput}
-            keyboardType="number-pad"
-            placeholder="Go to page"
-            placeholderTextColor={colors.icon}
-            style={[
-              styles.pageInput,
-              {
-                backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
-                borderColor: colors.tint,
-                color: colors.text,
-              },
-            ]}
-          />
-          <Pressable
-            style={[styles.goButton, { backgroundColor: colors.tint }]}
-            onPress={onGoToPage}
-          >
-            <Text style={styles.goButtonText}>Go</Text>
-          </Pressable>
-        </View>
+
+        <TextInput
+          value={pageInput}
+          onChangeText={setPageInput}
+          keyboardType="number-pad"
+          placeholder="Go to page"
+          placeholderTextColor={colors.icon}
+          style={[
+            styles.pageInput,
+            {
+              backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
+              borderColor: colors.tint,
+              color: colors.text,
+            },
+          ]}
+        />
+        <Pressable
+          style={[styles.goButton, { backgroundColor: colors.tint }]}
+          onPress={onGoToPage}
+        >
+          <Text style={styles.goButtonText}>Go</Text>
+        </Pressable>
 
         {/* <Text style={styles.swipeHint}>
           Swipe right for next page, left for previous page
@@ -352,7 +367,7 @@ export default function QuranScreen() {
           ]}
           onPress={goToPreviousPage}
         >
-          <Text style={styles.navButtonText}>{"<"}</Text>
+          <MaterialIcons name="navigate-before" size={20} color="#FFFFFF" />
         </Pressable>
 
         <Pressable
@@ -363,7 +378,7 @@ export default function QuranScreen() {
           ]}
           onPress={goToNextPage}
         >
-          <Text style={styles.navButtonText}>{">"}</Text>
+          <MaterialIcons name="navigate-next" size={20} color="#FFFFFF" />
         </Pressable>
       </View>
 
@@ -635,11 +650,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   pageInput: {
-    backgroundColor: "rgba(255,255,255,0.14)",
     borderColor: "rgba(255,255,255,0.25)",
     borderRadius: 10,
     borderWidth: 1,
-    color: "#FFFFFF",
+    textAlign: "center",
     flex: 1,
     fontSize: 16,
     paddingHorizontal: 12,
@@ -653,6 +667,7 @@ const styles = StyleSheet.create({
   goButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
+    textAlign: "center",
   },
   swipeHint: {
     color: "rgba(255,255,255,0.8)",
