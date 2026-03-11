@@ -1,98 +1,225 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getLastReadPage, getReadPages } from "@/lib/storage";
+import { getPrayerTimesForToday } from "@/services/prayer";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme() ?? "light";
+  const colors = Colors[colorScheme];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastPage, setLastPage] = useState(1);
+  const [readCount, setReadCount] = useState(0);
+  const [locationName, setLocationName] = useState("Unknown location");
+  const [timings, setTimings] = useState<Record<string, string>>({});
+  const [prayerError, setPrayerError] = useState<string | null>(null);
+
+  const loadScreenData = useCallback(async () => {
+    const [savedPage, readPages] = await Promise.all([
+      getLastReadPage(),
+      getReadPages(),
+    ]);
+    setLastPage(savedPage);
+    setReadCount(readPages.length);
+
+    try {
+      const prayerResult = await getPrayerTimesForToday();
+      setLocationName(
+        prayerResult.fromCache
+          ? `${prayerResult.location.name} (cached)`
+          : prayerResult.location.name,
+      );
+      setTimings(prayerResult.timings);
+      setPrayerError(null);
+    } catch (error) {
+      setPrayerError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load prayer schedule",
+      );
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const load = async () => {
+        setLoading(true);
+        await loadScreenData();
+        if (mounted) {
+          setLoading(false);
+        }
+      };
+
+      void load();
+
+      return () => {
+        mounted = false;
+      };
+    }, [loadScreenData]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadScreenData();
+    setRefreshing(false);
+  }, [loadScreenData]);
+
+  const progressPercent = Math.min(100, Math.round((readCount / 604) * 100));
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <Text style={[styles.pageTitle, { color: colors.text }]}>Home</Text>
+
+      <View
+        style={[
+          styles.card,
+          {
+            borderColor: colors.tint,
+            backgroundColor: colorScheme === "dark" ? "#102016" : "#F4FBF6",
+          },
+        ]}
+      >
+        <Text style={[styles.cardTitle, { color: colors.text }]}>
+          Continue Reading
+        </Text>
+        <Text style={[styles.cardValue, { color: colors.tint }]}>
+          Page {lastPage}
+        </Text>
+        <Text style={[styles.cardSubtext, { color: colors.icon }]}>
+          {readCount} of 604 pages read ({progressPercent}%)
+        </Text>
+      </View>
+
+      <View
+        style={[
+          styles.card,
+          {
+            borderColor: colors.tint,
+            backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
+          },
+        ]}
+      >
+        <Text style={[styles.cardTitle, { color: colors.text }]}>
+          Today&apos;s Prayer Times
+        </Text>
+        <Text style={[styles.cardSubtext, { color: colors.icon }]}>
+          {locationName}
+        </Text>
+
+        {loading ? (
+          <ActivityIndicator color={colors.tint} style={styles.loader} />
+        ) : prayerError ? (
+          <Text style={[styles.errorText, { color: "#C03A2B" }]}>
+            {prayerError}
+          </Text>
+        ) : (
+          <View style={styles.timingsList}>
+            {["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => (
+              <View key={name} style={styles.timeRow}>
+                <Text style={[styles.timeName, { color: colors.text }]}>
+                  {name}
+                </Text>
+                <Text style={[styles.timeValue, { color: colors.tint }]}>
+                  {timings[name] ?? "-"}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Pressable
+          style={[styles.refreshButton, { backgroundColor: colors.tint }]}
+          onPress={onRefresh}
+        >
+          <Text style={styles.refreshButtonText}>Refresh prayer times</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  screen: {
+    flex: 1,
+  },
+  container: {
+    gap: 16,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  pageTitle: {
+    fontSize: 30,
+    fontWeight: "700",
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardValue: {
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  cardSubtext: {
+    fontSize: 14,
+  },
+  timingsList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  timeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  timeName: {
+    fontSize: 16,
+  },
+  timeValue: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  refreshButton: {
+    alignItems: "center",
+    borderRadius: 10,
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  refreshButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  loader: {
+    marginTop: 8,
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 14,
   },
 });
