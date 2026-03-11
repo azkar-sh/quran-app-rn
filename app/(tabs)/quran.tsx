@@ -16,6 +16,7 @@ import {
   saveReadingProgress,
 } from "@/services/quran";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFonts } from "expo-font";
 import { Image } from "expo-image";
 import React, {
   useCallback,
@@ -43,6 +44,9 @@ const MAX_PAGE = 604;
 export default function QuranScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
+  const [fontsLoaded] = useFonts({
+    QuranArabic: require("../../assets/font/quran-arabic.otf"),
+  });
 
   const [page, setPage] = useState<number>(1);
   const [pageInput, setPageInput] = useState<string>("1");
@@ -167,31 +171,7 @@ export default function QuranScreen() {
             <MaterialIcons name="tune" size={20} color="#FFFFFF" />
           </Pressable>
         }
-      >
-        <View style={styles.controlsRow}>
-          <TextInput
-            value={pageInput}
-            onChangeText={setPageInput}
-            keyboardType="number-pad"
-            placeholder="Go to page"
-            placeholderTextColor="rgba(255,255,255,0.65)"
-            style={styles.pageInput}
-          />
-          <Pressable
-            style={[
-              styles.goButton,
-              { backgroundColor: "rgba(255,255,255,0.2)" },
-            ]}
-            onPress={onGoToPage}
-          >
-            <Text style={styles.goButtonText}>Go</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.swipeHint}>
-          Swipe right for next page, left for previous page
-        </Text>
-      </ScreenHero>
+      ></ScreenHero>
 
       <View style={styles.content} {...panResponder.panHandlers}>
         {loading ? (
@@ -244,7 +224,7 @@ export default function QuranScreen() {
                   },
                 ]}
               >
-                {typeof item.image_url === "string" &&
+                {/* {typeof item.image_url === "string" &&
                 item.image_url.length > 0 ? (
                   <Image
                     source={{ uri: item.image_url }}
@@ -252,17 +232,29 @@ export default function QuranScreen() {
                     contentFit="contain"
                     transition={150}
                   />
-                ) : null}
+                ) : null} */}
                 {typeof item.arab === "string" ? (
-                  <Text style={[styles.arabText, { color: colors.text }]}>
-                    {item.arab}
+                  <Text
+                    style={[
+                      styles.arabText,
+                      { color: colors.text },
+                      fontsLoaded ? { fontFamily: "QuranArabic" } : null,
+                    ]}
+                  >
+                    {item.arab}{" "}
+                    {item.ayah_number && !showTranslation
+                      ? `(${item.ayah_number})`
+                      : null}
                   </Text>
                 ) : null}
                 {showTranslation && typeof item.translation === "string" ? (
                   <Text
                     style={[styles.translationText, { color: colors.icon }]}
                   >
-                    {item.translation}
+                    {item.translation}{" "}
+                    {item.ayah_number && showTranslation
+                      ? `(${item.ayah_number})`
+                      : null}
                   </Text>
                 ) : null}
               </View>
@@ -272,6 +264,31 @@ export default function QuranScreen() {
       </View>
 
       <View style={styles.bottomNav}>
+        {/* Ayah Controls and Jump to Page */}
+        <View style={styles.controlsRow}>
+          <TextInput
+            value={pageInput}
+            onChangeText={setPageInput}
+            keyboardType="number-pad"
+            placeholder="Go to page"
+            placeholderTextColor="rgba(255,255,255,0.65)"
+            style={styles.pageInput}
+          />
+          <Pressable
+            style={[
+              styles.goButton,
+              { backgroundColor: "rgba(255,255,255,0.2)" },
+            ]}
+            onPress={onGoToPage}
+          >
+            <Text style={styles.goButtonText}>Go</Text>
+          </Pressable>
+        </View>
+
+        {/* <Text style={styles.swipeHint}>
+          Swipe right for next page, left for previous page
+        </Text> */}
+
         <Pressable
           disabled={page <= MIN_PAGE || loading}
           style={[
@@ -280,7 +297,7 @@ export default function QuranScreen() {
           ]}
           onPress={goToPreviousPage}
         >
-          <Text style={styles.navButtonText}>Previous</Text>
+          <Text style={styles.navButtonText}>{"<"}</Text>
         </Pressable>
 
         <Pressable
@@ -291,7 +308,7 @@ export default function QuranScreen() {
           ]}
           onPress={goToNextPage}
         >
-          <Text style={styles.navButtonText}>Next</Text>
+          <Text style={styles.navButtonText}>{">"}</Text>
         </Pressable>
       </View>
 
@@ -517,7 +534,7 @@ const styles = StyleSheet.create({
   },
   arabText: {
     fontSize: 24,
-    lineHeight: 36,
+    lineHeight: 40,
     textAlign: "right",
   },
   translationText: {
