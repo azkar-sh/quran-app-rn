@@ -157,3 +157,22 @@ export function getSurahInfoForPage(page: number): {
 
   return result;
 }
+
+export interface SurahEntry {
+  number: number;
+  name: string;
+  meaning: string;
+  page: number;
+}
+
+/**
+ * Returns all 114 surahs with their number, name, Indonesian meaning, and starting page.
+ */
+export function getAllSurahs(): SurahEntry[] {
+  return SURAH_PAGE_MAP.map(([page, name, meaning], index) => ({
+    number: index + 1,
+    name,
+    meaning,
+    page,
+  }));
+}

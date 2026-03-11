@@ -15,7 +15,11 @@ import {
   setQuranTranslationFontSize,
   setQuranViewMode,
 } from "@/lib/storage";
-import { getSurahInfoForPage } from "@/lib/surah-pages";
+import {
+  getAllSurahs,
+  getSurahInfoForPage,
+  SurahEntry,
+} from "@/lib/surah-pages";
 import {
   getQuranPage,
   prefetchQuranBatch,
@@ -84,6 +88,8 @@ export default function QuranScreen() {
   const [translationFontSize, setTranslationFontSizeState] =
     useState<QuranTranslationFontSize>(14);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [showSurahModal, setShowSurahModal] = useState<boolean>(false);
+  const [surahSearch, setSurahSearch] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const prefetchedBatches = useRef<Set<number>>(new Set());
@@ -200,12 +206,40 @@ export default function QuranScreen() {
 
   const surahInfo = getSurahInfoForPage(page);
 
+  const allSurahs = useMemo(() => getAllSurahs(), []);
+  const filteredSurahs = useMemo(() => {
+    const q = surahSearch.trim().toLowerCase();
+    if (!q) return allSurahs;
+    return allSurahs.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.meaning.toLowerCase().includes(q) ||
+        String(s.number).includes(q),
+    );
+  }, [allSurahs, surahSearch]);
+  const surahListRef = useRef<FlatList<SurahEntry>>(null);
+
+  useEffect(() => {
+    if (!showSurahModal) return;
+    const idx = allSurahs.findIndex((s) => s.name === surahInfo.name);
+    if (idx <= 0) return;
+    const timer = setTimeout(() => {
+      surahListRef.current?.scrollToIndex({
+        index: idx,
+        animated: false,
+        viewOffset: 20,
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [showSurahModal, allSurahs, surahInfo.name]);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHero
         title={`${surahInfo.name}`}
         subtitle={`${surahInfo.meaning}`}
         badge={viewMode === "page" ? "Tampilan Mushaf" : "Tampilan per Ayat"}
+        onTitlePress={() => setShowSurahModal(true)}
         rightElement={
           <Pressable
             style={styles.settingsButton}
@@ -270,17 +304,87 @@ export default function QuranScreen() {
             keyExtractor={(item, index) => `${item.id ?? "ayah"}-${index}`}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.ayahCard,
-                  {
-                    borderColor: colors.tint,
-                    backgroundColor:
-                      colorScheme === "dark" ? "#101513" : "#F8FCFA",
-                  },
-                ]}
-              >
-                {/* {typeof item.image_url === "string" &&
+              <View>
+                {item.ayah_number === 1 ? (
+                  <View style={styles.surahDivider}>
+                    {/* Ornamental top rule */}
+                    <View
+                      style={[
+                        styles.surahDividerLine,
+                        { backgroundColor: colors.tint },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.surahDividerCard,
+                        {
+                          backgroundColor:
+                            colorScheme === "dark" ? "#0B2A15" : "#E8F5EE",
+                          borderColor: colors.tint,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.surahDividerBadge,
+                          { backgroundColor: colors.tint },
+                        ]}
+                      >
+                        <Text style={styles.surahDividerBadgeText}>
+                          {item.surah_number}
+                        </Text>
+                      </View>
+                      <View style={styles.surahDividerInfo}>
+                        <Text
+                          style={[
+                            styles.surahDividerName,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {item.surah?.name_latin ?? ""}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.surahDividerMeaning,
+                            { color: colors.icon },
+                          ]}
+                        >
+                          {item.surah?.translation ?? ""}
+                        </Text>
+                      </View>
+                    </View>
+                    {/* Bismillah — shown for all surahs except Al-Fatihah (1) and At-Tawbah (9) */}
+                    {item.surah_number !== 1 && item.surah_number !== 9 ? (
+                      <Text
+                        style={[
+                          styles.bismillah,
+                          { color: colors.text },
+                          fontsLoaded ? { fontFamily: "QuranArabic" } : null,
+                        ]}
+                      >
+                        {"بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"}
+                      </Text>
+                    ) : null}
+                    <View
+                      style={[
+                        styles.surahDividerLine,
+                        { backgroundColor: colors.tint },
+                      ]}
+                    />
+                  </View>
+                ) : null}
+
+                <View
+                  style={[
+                    styles.ayahCard,
+                    {
+                      borderColor: colors.tint,
+                      backgroundColor:
+                        colorScheme === "dark" ? "#101513" : "#F8FCFA",
+                    },
+                  ]}
+                >
+                  {/* {typeof item.image_url === "string" &&
                 item.image_url.length > 0 ? (
                   <Image
                     source={{ uri: item.image_url }}
@@ -289,41 +393,42 @@ export default function QuranScreen() {
                     transition={150}
                   />
                 ) : null} */}
-                {typeof item.arab === "string" ? (
-                  <Text
-                    style={[
-                      styles.arabText,
-                      {
-                        color: colors.text,
-                        fontSize: arabicPreset.fontSize,
-                        lineHeight: arabicPreset.lineHeight,
-                      },
-                      fontsLoaded ? { fontFamily: "QuranArabic" } : null,
-                    ]}
-                  >
-                    {item.arab}{" "}
-                    {item.ayah_number && !showTranslation
-                      ? `(${item.ayah_number})`
-                      : null}
-                  </Text>
-                ) : null}
-                {showTranslation && typeof item.translation === "string" ? (
-                  <Text
-                    style={[
-                      styles.translationText,
-                      {
-                        color: colors.icon,
-                        fontSize: translationPreset.fontSize,
-                        lineHeight: translationPreset.lineHeight,
-                      },
-                    ]}
-                  >
-                    {item.translation}{" "}
-                    {item.ayah_number && showTranslation
-                      ? `(${item.ayah_number})`
-                      : null}
-                  </Text>
-                ) : null}
+                  {typeof item.arab === "string" ? (
+                    <Text
+                      style={[
+                        styles.arabText,
+                        {
+                          color: colors.text,
+                          fontSize: arabicPreset.fontSize,
+                          lineHeight: arabicPreset.lineHeight,
+                        },
+                        fontsLoaded ? { fontFamily: "QuranArabic" } : null,
+                      ]}
+                    >
+                      {item.arab}{" "}
+                      {item.ayah_number && !showTranslation
+                        ? `(${item.ayah_number})`
+                        : null}
+                    </Text>
+                  ) : null}
+                  {showTranslation && typeof item.translation === "string" ? (
+                    <Text
+                      style={[
+                        styles.translationText,
+                        {
+                          color: colors.icon,
+                          fontSize: translationPreset.fontSize,
+                          lineHeight: translationPreset.lineHeight,
+                        },
+                      ]}
+                    >
+                      {item.translation}{" "}
+                      {item.ayah_number && showTranslation
+                        ? `(${item.ayah_number})`
+                        : null}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             )}
           />
@@ -611,6 +716,125 @@ export default function QuranScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Surah list modal */}
+      <Modal
+        visible={showSurahModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowSurahModal(false);
+          setSurahSearch("");
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setShowSurahModal(false);
+            setSurahSearch("");
+          }}
+        >
+          <Pressable
+            style={[
+              styles.modalSheet,
+              styles.surahModalSheet,
+              { backgroundColor: colors.background },
+            ]}
+            onPress={() => {
+              /* consume touch */
+            }}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Pilih Surah
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setShowSurahModal(false);
+                  setSurahSearch("");
+                }}
+              >
+                <MaterialIcons name="close" size={24} color={colors.icon} />
+              </Pressable>
+            </View>
+
+            <TextInput
+              value={surahSearch}
+              onChangeText={setSurahSearch}
+              placeholder="Cari nama atau arti surah..."
+              placeholderTextColor={colors.icon}
+              style={[
+                styles.surahSearchInput,
+                {
+                  backgroundColor:
+                    colorScheme === "dark" ? "#101513" : "#F0F7F3",
+                  borderColor: colors.tint,
+                  color: colors.text,
+                },
+              ]}
+            />
+
+            <FlatList
+              ref={surahListRef}
+              data={filteredSurahs}
+              keyExtractor={(item) => String(item.number)}
+              style={styles.surahList}
+              onScrollToIndexFailed={() => {}}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.surahRow,
+                    {
+                      backgroundColor:
+                        surahInfo.name === item.name
+                          ? colorScheme === "dark"
+                            ? "#0B2A15"
+                            : "#E8F5EE"
+                          : "transparent",
+                    },
+                  ]}
+                  onPress={() => {
+                    void loadPage(item.page);
+                    setShowSurahModal(false);
+                    setSurahSearch("");
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.surahNumberBadge,
+                      { backgroundColor: colors.tint },
+                    ]}
+                  >
+                    <Text style={styles.surahNumberText}>{item.number}</Text>
+                  </View>
+                  <View style={styles.surahItemInfo}>
+                    <Text style={[styles.surahName, { color: colors.text }]}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.surahMeaning, { color: colors.icon }]}>
+                      {item.meaning}
+                    </Text>
+                  </View>
+                  <Text style={[styles.surahPage, { color: colors.icon }]}>
+                    Hal. {item.page}
+                  </Text>
+                </Pressable>
+              )}
+              ItemSeparatorComponent={() => (
+                <View
+                  style={[
+                    styles.surahSeparator,
+                    {
+                      backgroundColor:
+                        colorScheme === "dark" ? "#1A2E22" : "#E8F0EB",
+                    },
+                  ]}
+                />
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -795,5 +1019,106 @@ const styles = StyleSheet.create({
   settingLabelGroup: {
     flex: 1,
     paddingRight: 12,
+  },
+  surahModalSheet: {
+    maxHeight: "80%",
+  },
+  surahSearchInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    fontSize: 14,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  surahList: {
+    flex: 1,
+  },
+  surahRow: {
+    alignItems: "center",
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+  },
+  surahNumberBadge: {
+    alignItems: "center",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  surahNumberText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  surahItemInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  surahName: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  surahMeaning: {
+    fontSize: 12,
+  },
+  surahPage: {
+    fontSize: 12,
+  },
+  surahSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 48,
+  },
+  surahDivider: {
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+    paddingTop: 4,
+  },
+  surahDividerLine: {
+    height: 1,
+    opacity: 0.4,
+    width: "100%",
+  },
+  surahDividerCard: {
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    width: "100%",
+  },
+  surahDividerBadge: {
+    alignItems: "center",
+    borderRadius: 20,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  surahDividerBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  surahDividerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  surahDividerName: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  surahDividerMeaning: {
+    fontSize: 12,
+  },
+  bismillah: {
+    fontSize: 22,
+    lineHeight: 38,
+    textAlign: "center",
   },
 });

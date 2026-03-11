@@ -15,6 +15,14 @@ export type QuranAyah = {
   arab?: string;
   translation?: string;
   image_url?: string;
+  surah?: {
+    number?: number;
+    name?: string;
+    name_latin?: string;
+    number_of_ayahs?: number;
+    translation?: string;
+    revelation?: string;
+  };
   [key: string]: unknown;
 };
 

@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, Pattern, Polygon, Rect } from "react-native-svg";
 
@@ -12,6 +12,7 @@ type ScreenHeroProps = {
   badge?: string;
   rightElement?: React.ReactNode;
   children?: React.ReactNode;
+  onTitlePress?: () => void;
 };
 
 function IslamicPatternOverlay() {
@@ -49,6 +50,7 @@ export function ScreenHero({
   badge,
   rightElement,
   children,
+  onTitlePress,
 }: ScreenHeroProps) {
   const colorScheme = useColorScheme() ?? "light";
   const insets = useSafeAreaInsets();
@@ -78,10 +80,26 @@ export function ScreenHero({
       ) : null}
 
       <View style={styles.titleRow}>
-        <View style={styles.titleGroup}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
+        {onTitlePress ? (
+          <Pressable style={styles.titleGroup} onPress={onTitlePress}>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? (
+              <View style={styles.subtitleRow}>
+                <Text style={styles.subtitle}>{subtitle}</Text>
+                <MaterialIcons
+                  name="expand-more"
+                  size={16}
+                  color="rgba(255,255,255,0.6)"
+                />
+              </View>
+            ) : null}
+          </Pressable>
+        ) : (
+          <View style={styles.titleGroup}>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+        )}
         {rightElement ? (
           <View style={styles.rightWrap}>{rightElement}</View>
         ) : null}
@@ -127,6 +145,11 @@ const styles = StyleSheet.create({
   subtitle: {
     color: "rgba(255,255,255,0.85)",
     fontSize: 14,
+  },
+  subtitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
   },
   rightWrap: {
     alignItems: "center",
