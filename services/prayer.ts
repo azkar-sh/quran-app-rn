@@ -1,5 +1,6 @@
 import {
   getJsonCache,
+  getLastLocation,
   getPrayerMethod,
   getPrayerTodayCacheKey,
   saveLastLocation,
@@ -21,6 +22,15 @@ export type PrayerTimesResult = {
   timings: Record<string, string>;
   location: SavedLocation;
   fromCache: boolean;
+};
+
+type PrayerDailyCache = {
+  timings: Record<string, string>;
+  location: SavedLocation;
+};
+
+type GetPrayerTimesOptions = {
+  forceRefresh?: boolean;
 };
 
 function formatDateForAladhan(date: Date): string {
@@ -65,10 +75,30 @@ async function getCurrentLocation(): Promise<SavedLocation> {
   return { lat, lng, name };
 }
 
-export async function getPrayerTimesForToday(): Promise<PrayerTimesResult> {
-  const location = await getCurrentLocation();
+function getPrayerDailyCacheKey(date: string, method: number): string {
+  return `prayer.daily.${date}.method.${method}`;
+}
+
+export async function getPrayerTimesForToday(
+  options: GetPrayerTimesOptions = {},
+): Promise<PrayerTimesResult> {
+  const { forceRefresh = false } = options;
   const method = await getPrayerMethod();
   const date = formatDateForAladhan(new Date());
+  const dailyCacheKey = getPrayerDailyCacheKey(date, method);
+
+  if (!forceRefresh) {
+    const dailyCached = await getJsonCache<PrayerDailyCache>(dailyCacheKey);
+    if (dailyCached?.timings && dailyCached?.location) {
+      return {
+        timings: dailyCached.timings,
+        location: dailyCached.location,
+        fromCache: true,
+      };
+    }
+  }
+
+  const location = await getCurrentLocation();
   const cacheKey = getPrayerTodayCacheKey(date, location.lat, location.lng);
 
   const url =
@@ -87,8 +117,10 @@ export async function getPrayerTimesForToday(): Promise<PrayerTimesResult> {
     }
 
     const timings = cleanTimings(payload.data.timings);
+    const dailyPayload: PrayerDailyCache = { timings, location };
     await Promise.all([
       setJsonCache(cacheKey, timings),
+      setJsonCache(dailyCacheKey, dailyPayload),
       saveLastLocation(location),
     ]);
 
@@ -98,6 +130,15 @@ export async function getPrayerTimesForToday(): Promise<PrayerTimesResult> {
       fromCache: false,
     };
   } catch {
+    const dailyCached = await getJsonCache<PrayerDailyCache>(dailyCacheKey);
+    if (dailyCached?.timings && dailyCached?.location) {
+      return {
+        timings: dailyCached.timings,
+        location: dailyCached.location,
+        fromCache: true,
+      };
+    }
+
     const cached = await getJsonCache<Record<string, string>>(cacheKey);
     if (cached) {
       return {
@@ -105,6 +146,24 @@ export async function getPrayerTimesForToday(): Promise<PrayerTimesResult> {
         location,
         fromCache: true,
       };
+    }
+
+    const lastLocation = await getLastLocation();
+    if (lastLocation) {
+      const lastLocationKey = getPrayerTodayCacheKey(
+        date,
+        lastLocation.lat,
+        lastLocation.lng,
+      );
+      const cachedByLastLocation =
+        await getJsonCache<Record<string, string>>(lastLocationKey);
+      if (cachedByLastLocation) {
+        return {
+          timings: cachedByLastLocation,
+          location: lastLocation,
+          fromCache: true,
+        };
+      }
     }
 
     throw new Error("Unable to load prayer times");

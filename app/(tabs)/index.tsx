@@ -1,10 +1,10 @@
+import { ScreenHero } from "@/components/screen-hero";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getLastReadPage, getReadPages } from "@/lib/storage";
 import { getSurahNameForPage } from "@/lib/surah-pages";
 import { getPrayerTimesForToday } from "@/services/prayer";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -16,8 +16,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Pattern, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle } from "react-native-svg";
 
 // ─────────────────────────── Constants & helpers ───────────────────────────
 
@@ -25,11 +24,11 @@ const PRAYER_ORDER = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"] as const;
 type PrayerName = (typeof PRAYER_ORDER)[number];
 
 const PRAYER_META: Record<PrayerName, { icon: string }> = {
-  Fajr: { icon: "nights_stay" },
-  Dhuhr: { icon: "wb_sunny" },
-  Asr: { icon: "light_mode" },
+  Fajr: { icon: "nightlight-round" },
+  Dhuhr: { icon: "wb-sunny" },
+  Asr: { icon: "light-mode" },
   Maghrib: { icon: "flare" },
-  Isha: { icon: "dark_mode" },
+  Isha: { icon: "dark-mode" },
 };
 
 function parseMinutes(timeStr: string): number {
@@ -74,37 +73,6 @@ function getGreeting(): string {
   if (hour < 15) return "Good Afternoon";
   if (hour < 19) return "Good Evening";
   return "Good Night";
-}
-
-// ─────────────────────────── Sub-components ───────────────────────────────
-
-function IslamicPatternOverlay() {
-  return (
-    <Svg
-      width="100%"
-      height="100%"
-      style={StyleSheet.absoluteFillObject}
-      pointerEvents="none"
-    >
-      <Defs>
-        <Pattern
-          id="islamic-star"
-          width="80"
-          height="80"
-          patternUnits="userSpaceOnUse"
-        >
-          <Polygon
-            points="40,5 46,26 65,15 54,34 75,40 54,46 65,65 46,54 40,75 34,54 15,65 26,46 5,40 26,34 15,15 34,26"
-            fill="none"
-            stroke="white"
-            strokeWidth={1.5}
-            strokeOpacity={0.12}
-          />
-        </Pattern>
-      </Defs>
-      <Rect width="100%" height="100%" fill="url(#islamic-star)" />
-    </Svg>
-  );
 }
 
 interface CircularProgressProps {
@@ -240,7 +208,6 @@ function PrayerCard({
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const colors = Colors[colorScheme];
-  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -250,7 +217,7 @@ export default function HomeScreen() {
   const [timings, setTimings] = useState<Record<string, string>>({});
   const [prayerError, setPrayerError] = useState<string | null>(null);
 
-  const loadScreenData = useCallback(async () => {
+  const loadScreenData = useCallback(async (forcePrayerRefresh = false) => {
     const [savedPage, readPages] = await Promise.all([
       getLastReadPage(),
       getReadPages(),
@@ -259,7 +226,9 @@ export default function HomeScreen() {
     setReadCount(readPages.length);
 
     try {
-      const result = await getPrayerTimesForToday();
+      const result = await getPrayerTimesForToday({
+        forceRefresh: forcePrayerRefresh,
+      });
       setLocationName(
         result.fromCache
           ? `${result.location.name} (cached)`
@@ -291,7 +260,7 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadScreenData();
+    await loadScreenData(true);
     setRefreshing(false);
   }, [loadScreenData]);
 
@@ -301,12 +270,6 @@ export default function HomeScreen() {
   const greeting = getGreeting();
   const { current, next, countdown } = getActivePrayerInfo(timings);
   const hasPrayerData = Object.keys(timings).length > 0;
-
-  // Gradient colors
-  const heroGradient =
-    colorScheme === "dark"
-      ? (["#040C07", "#091A0E", "#0E2718"] as const)
-      : (["#0B5C2E", "#1D8F4E", "#34C175"] as const);
 
   const cardBg = colorScheme === "dark" ? "#0C1810" : "#FFFFFF";
   const cardBorder = colorScheme === "dark" ? "#1A2E20" : "#E0F2E9";
@@ -324,46 +287,17 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* ── Hero Header ── */}
-      <LinearGradient
-        colors={heroGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, { paddingTop: insets.top + 20 }]}
-      >
-        <IslamicPatternOverlay />
-
-        {/* Location */}
-        {locationName ? (
-          <View style={styles.locationRow}>
-            <MaterialIcons
-              name="location-on"
-              size={14}
-              color="rgba(255,255,255,0.75)"
-            />
-            <Text style={styles.locationText}>{locationName}</Text>
-          </View>
-        ) : null}
-
-        {/* Greeting */}
-        <Text style={styles.heroGreeting}>{greeting}</Text>
-
-        {/* Next prayer countdown */}
-        {hasPrayerData && next && countdown ? (
-          <View style={styles.countdownRow}>
-            <MaterialIcons
-              name="access-time"
-              size={14}
-              color="rgba(255,255,255,0.85)"
-            />
-            <Text style={styles.countdownText}>
-              Time until {next}: {countdown}
-            </Text>
-          </View>
-        ) : hasPrayerData ? (
-          <Text style={styles.countdownText}>All prayers completed today</Text>
-        ) : null}
-      </LinearGradient>
+      <ScreenHero
+        title={greeting}
+        subtitle={
+          hasPrayerData && next && countdown
+            ? `Time until ${next}: ${countdown}`
+            : hasPrayerData
+              ? "All prayers completed today"
+              : undefined
+        }
+        badge={locationName ?? undefined}
+      />
 
       <View style={styles.body}>
         {/* ── Reading Progress Card ── */}
@@ -491,39 +425,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 32,
-  },
-  // ── Hero
-  hero: {
-    gap: 6,
-    overflow: "hidden",
-    paddingBottom: 32,
-    paddingHorizontal: 20,
-  },
-  locationRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-    marginBottom: 2,
-  },
-  locationText: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-  },
-  heroGreeting: {
-    color: "#FFFFFF",
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-  },
-  countdownRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 5,
-    marginTop: 2,
-  },
-  countdownText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
   },
   // ── Body
   body: {

@@ -1,3 +1,4 @@
+import { ScreenHero } from "@/components/screen-hero";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
@@ -154,58 +155,43 @@ export default function QuranScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>Quran</Text>
-            <Text style={[styles.subtitle, { color: colors.icon }]}>
-              Page {page} / 604
-            </Text>
-          </View>
+      <ScreenHero
+        title="Quran"
+        subtitle={`Page ${page} / 604`}
+        badge={viewMode === "page" ? "Mushaf Page View" : "Ayat List View"}
+        rightElement={
           <Pressable
-            style={[
-              styles.settingsButton,
-              {
-                backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
-                borderColor: colors.tint,
-              },
-            ]}
+            style={styles.settingsButton}
             onPress={() => setShowSettingsModal(true)}
           >
-            <MaterialIcons name="tune" size={22} color={colors.tint} />
+            <MaterialIcons name="tune" size={20} color="#FFFFFF" />
           </Pressable>
-        </View>
-
+        }
+      >
         <View style={styles.controlsRow}>
           <TextInput
             value={pageInput}
             onChangeText={setPageInput}
             keyboardType="number-pad"
-            placeholder="Page"
-            placeholderTextColor={colors.icon}
-            style={[
-              styles.pageInput,
-              {
-                borderColor: colors.tint,
-                color: colors.text,
-                backgroundColor: colorScheme === "dark" ? "#101513" : "#F8FCFA",
-              },
-            ]}
+            placeholder="Go to page"
+            placeholderTextColor="rgba(255,255,255,0.65)"
+            style={styles.pageInput}
           />
           <Pressable
-            style={[styles.goButton, { backgroundColor: colors.tint }]}
+            style={[
+              styles.goButton,
+              { backgroundColor: "rgba(255,255,255,0.2)" },
+            ]}
             onPress={onGoToPage}
           >
             <Text style={styles.goButtonText}>Go</Text>
           </Pressable>
         </View>
-      </View>
 
-      <View style={styles.swipeHintWrap}>
-        <Text style={[styles.swipeHint, { color: colors.icon }]}>
+        <Text style={styles.swipeHint}>
           Swipe right for next page, left for previous page
         </Text>
-      </View>
+      </ScreenHero>
 
       <View style={styles.content} {...panResponder.panHandlers}>
         {loading ? (
@@ -439,35 +425,19 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  header: {
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  headerTopRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
   settingsButton: {
     alignItems: "center",
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 14,
     borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
     justifyContent: "center",
     padding: 8,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "700",
-  },
-  subtitle: {
-    fontSize: 14,
   },
   controlsRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
-    marginTop: 8,
   },
   modeRow: {
     flexDirection: "row",
@@ -486,15 +456,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   pageInput: {
-    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.25)",
+    borderRadius: 14,
     borderWidth: 1,
+    color: "#FFFFFF",
     flex: 1,
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   goButton: {
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
@@ -502,16 +475,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
   },
-  swipeHintWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
-  },
   swipeHint: {
+    color: "rgba(255,255,255,0.8)",
     fontSize: 12,
   },
   content: {
     flex: 1,
-    marginTop: 8,
   },
   pageImageWrap: {
     flex: 1,

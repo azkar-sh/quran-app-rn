@@ -1,3 +1,4 @@
+import { ScreenHero } from "@/components/screen-hero";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
@@ -10,7 +11,14 @@ import {
 import { useAppTheme } from "@/providers/app-theme-provider";
 import * as Location from "expo-location";
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme() ?? "light";
@@ -116,8 +124,15 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Text style={[styles.pageTitle, { color: colors.text }]}>Settings</Text>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <ScreenHero
+        title="Settings"
+        subtitle="Theme, prayer, location, and cached reading data"
+        badge="Personalization"
+      />
 
       <View
         style={[
@@ -205,21 +220,20 @@ export default function SettingsScreen() {
           <Text style={styles.actionButtonText}>Refresh status</Text>
         </Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    gap: 16,
-    padding: 16,
   },
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: "700",
+  content: {
+    gap: 16,
+    paddingBottom: 24,
   },
   card: {
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     gap: 12,
