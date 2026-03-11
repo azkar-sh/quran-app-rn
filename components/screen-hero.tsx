@@ -30,15 +30,26 @@ function IslamicPatternOverlay() {
           height="80"
           patternUnits="userSpaceOnUse"
         >
+          {/* outer square */}
           <Polygon
-            points="40,5 46,26 65,15 54,34 75,40 54,46 65,65 46,54 40,75 34,54 15,65 26,46 5,40 26,34 15,15 34,26"
+            points="10,10 70,10 70,70 10,70"
             fill="none"
             stroke="white"
-            strokeWidth={1.5}
-            strokeOpacity={0.12}
+            strokeWidth={0.8}
+            strokeOpacity={0.08}
+          />
+
+          {/* diamond */}
+          <Polygon
+            points="40,0 80,40 40,80 0,40"
+            fill="none"
+            stroke="white"
+            strokeWidth={0.8}
+            strokeOpacity={0.08}
           />
         </Pattern>
       </Defs>
+
       <Rect width="100%" height="100%" fill="url(#screen-hero-islamic-star)" />
     </Svg>
   );
